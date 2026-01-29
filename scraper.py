@@ -15,16 +15,28 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+    extracted_links = []
+
+    # Do stuff here guys
+    
+    return extracted_links
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+    valid_depts = set(['ics', 'cs', 'informatics', 'stat'])
+
     try:
         parsed = urlparse(url)
+        
         if parsed.scheme not in set(["http", "https"]):
             return False
+        
+        domains = parsed.netloc.split('.')
+        if domains[-1] != 'edu' or domains[-2] != 'uci' or domains[-3] not in valid_depts:
+            return False
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
