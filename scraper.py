@@ -134,7 +134,16 @@ def is_valid(url):
         
         domains = parsed.netloc.split('.')
 
-        if len(domains) < 3 or domains[-1] != 'edu' or domains[-2] != 'uci' or domains[-3] not in valid_depts:
+        if len(domains) < 3 or domains[-1] != 'edu' or domains[-2] != 'uci':
+            return False
+        
+        has_valid_dept = False
+        for dept in valid_depts:
+            if dept in domains:
+                has_valid_dept = True
+                break
+        
+        if not has_valid_dept:
             return False
         
         # File extension filtering
