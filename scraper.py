@@ -6,26 +6,26 @@ from collections import Counter
 import hashlib
 
 website_fps = []
+website_fps_wordcount = []  #track word count for each fingerprint
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
 
-def get_simhash_fingerprint(web_content: str) -> int:
+def get_simhash_fingerprint(words: list) -> int:
     """
     Generates the fingerprint for the webpage content
     
-    :param web_content: The webpage content
+    :param words: List of words from the page
     :return: The Simhash fingerprint for the webpage
     """
     shingle_len = 3
-    shingle_tokens = (web_content[i:i+shingle_len] for i in range(len(web_content) - (shingle_len - 1)))
-
     vector = [0] * 64
 
-    for shingle_token in shingle_tokens:
-        token_hash = int.from_bytes(hashlib.blake2b(shingle_token.encode(), digest_size=8).digest(), 'big')
+    for i in range(len(words) - shingle_len + 1):
+        shingle = " ".join(words[i:i+shingle_len])
+        token_hash = int.from_bytes(hashlib.blake2b(shingle.encode(), digest_size=8).digest(), 'big')
 
         for i in range(64):
             bitmask = 1 << i
@@ -44,19 +44,30 @@ def get_simhash_fingerprint(web_content: str) -> int:
     return fingerprint
 
 
-def is_near_dup(page_content: str) -> int:
-    curr_fingerprint = get_simhash_fingerprint(page_content)
-
-    for fingerprint in website_fps:
-        difference_distance = (curr_fingerprint ^ fingerprint).bit_count()
-
-        similarity = (64 - difference_distance) / 64
-
-        if similarity >= 0.95:
-            return True
+def is_near_dup(page_words: list) -> bool:
+    word_count = len(page_words)
+    
+    #only compare against pages with similar word count
+    candidates = []
+    for idx, stored_count in enumerate(website_fps_wordcount):
+        if abs(word_count - stored_count) / max(word_count, stored_count, 1) <= 0.2:
+            candidates.append(idx)
+    
+    #if many candidates, compute fingerprint and compare
+    if candidates:
+        curr_fingerprint = get_simhash_fingerprint(page_words)
         
-    website_fps.append(curr_fingerprint)
-
+        for idx in candidates:
+            difference_distance = (curr_fingerprint ^ website_fps[idx]).bit_count()
+            similarity = (64 - difference_distance) / 64
+            
+            if similarity >= 0.95:
+                return True
+    
+    #store for future comparisons
+    website_fps.append(get_simhash_fingerprint(page_words) if not candidates else curr_fingerprint)
+    website_fps_wordcount.append(word_count)
+    
     return False
 
 
@@ -78,18 +89,18 @@ def extract_next_links(url: str, resp):
     # Setting up BS Object for page parsing
     bs_web = BeautifulSoup(resp.raw_response.content, "html.parser")
     page_text = bs_web.get_text()
+    page_words = page_text.split()
 
-    if len(page_text.split()) < 50:
+    if len(page_words) < 50:
         return []
     
-    #Update the statistics (only for unique URLs)
+    if is_near_dup(page_words):
+        return []
+    
+    #update the statistics
     if resp.url not in seen_urls:
         update_statistics(bs_web, resp.url)
         seen_urls.add(resp.url)
-
-    # Detect duplicate/similar links and filter out invalid links
-    if is_near_dup(page_text):
-        return []
 
     anchor_tags = bs_web.find_all('a', href=True)
     
