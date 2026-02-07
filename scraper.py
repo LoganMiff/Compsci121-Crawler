@@ -270,8 +270,7 @@ def load_statistics():
                 most_common_words = Counter(data.get('most_common_words', {}))
                 # Convert list of URLs back to sets for each subdomain
                 sub_domain_pages = {k: set(v) for k, v in data.get('sub_domain_pages', {}).items()}
-                seen_urls = set(data.get('seen_urls', []))
-            print(f"Loaded existing stats: {unique_page_count} pages, {len(seen_urls)} URLs seen")
+            print(f"Loaded existing stats: {unique_page_count} pages, {len(sub_domain_pages)} subdomains")
         except Exception as e:
             print(f"Warning: Failed to load stats: {e}, starting from scratch")
     else:
@@ -286,7 +285,6 @@ def save_statistics():
             'longest_page_link': longest_page_link,
             'most_common_words': dict(most_common_words),  #save ALL words
             'sub_domain_pages': {k: list(v) for k, v in sub_domain_pages.items()},  #convert sets to lists for JSON
-            'seen_urls': list(seen_urls)
         }
         with open(STATS_JSON_FILE, 'w') as f:
             json.dump(data, f, indent=2)
