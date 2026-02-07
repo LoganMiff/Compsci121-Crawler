@@ -111,11 +111,13 @@ def is_valid(url):
         
         if parsed.scheme not in set(["http", "https"]):
             return False
+    
         
         domains = parsed.netloc.split('.')
+
         if len(domains) < 3 or domains[-1] != 'edu' or domains[-2] != 'uci' or domains[-3] not in valid_depts:
             return False
-
+        
         # File extension filtering
         if re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
@@ -138,7 +140,7 @@ def is_valid(url):
         # Avoid long URLs (Limit trap)
         if len(url) > 200:
             return False
-        
+            
         # Avoid too many path segments
         pathSegments = []
         for seg in parsed.path.split('/'):
@@ -146,6 +148,7 @@ def is_valid(url):
                 pathSegments.append(seg)
         if len(pathSegments) > 10:
             return False
+    
         
         # Detect repeating path patterns
         if len(pathSegments) > 3:
@@ -154,6 +157,7 @@ def is_valid(url):
                 segmentCounts[seg] = segmentCounts.get(seg, 0) + 1
                 if segmentCounts[seg] > 2:
                     return False
+        
         
         # Avoid common trap patterns
         trapPatterns = [
@@ -170,10 +174,12 @@ def is_valid(url):
         for pattern in trapPatterns:
             if re.match(pattern, url.lower()):
                 return False
+
         
         # Detect and avoid session IDs in URLs
         if re.search(r"(sessionid|sid|phpsessid|jsessionid|aspsessionid|sessid)=[a-zA-Z0-9]+", url.lower()):
             return False
+    
         
         # Avoid common low information pages
         low_info_patterns = [
@@ -196,6 +202,7 @@ def is_valid(url):
         # Avoid URLs with excessive repeating characters
         if re.search(r'(.)\1{5,}', parsed.path):
             return False
+        return True
         
     except TypeError:
         print ("TypeError for ", parsed)
