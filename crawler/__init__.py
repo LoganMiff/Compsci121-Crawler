@@ -1,6 +1,7 @@
 from utils import get_logger
 from crawler.frontier import Frontier
 from crawler.worker import Worker
+from scraper import final_report
 
 class Crawler(object):
     def __init__(self, config, restart, frontier_factory=Frontier, worker_factory=Worker):
@@ -20,6 +21,7 @@ class Crawler(object):
     def start(self):
         self.start_async()
         self.join()
+        final_report()
 
     def join(self):
         for worker in self.workers:
