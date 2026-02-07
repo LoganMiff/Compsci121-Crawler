@@ -1,3 +1,6 @@
+import multiprocessing
+multiprocessing.set_start_method("fork", force=True)
+
 from configparser import ConfigParser
 from argparse import ArgumentParser
 
