@@ -271,8 +271,11 @@ def load_statistics():
                 # Convert list of URLs back to sets for each subdomain
                 sub_domain_pages = {k: set(v) for k, v in data.get('sub_domain_pages', {}).items()}
                 seen_urls = set(data.get('seen_urls', []))
+            print(f"Loaded existing stats: {unique_page_count} pages, {len(seen_urls)} URLs seen")
         except Exception as e:
-            print(f"Failed to load stats: {e} starting from scratch")
+            print(f"Warning: Failed to load stats: {e}, starting from scratch")
+    else:
+        print("No existing stats file found...")
 
 def save_statistics():
     """save all statistics to JSON"""
@@ -291,7 +294,10 @@ def save_statistics():
         print(f"Failed to save stats: {e}")
 
 #load existing stats when module is imported
-load_statistics()
+try:
+    load_statistics()
+except Exception as e:
+    print(f"Error during stats loading: {e}, continuing anyway")
 
 def update_statistics(bs: BeautifulSoup, url: str) -> None:
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
