@@ -95,8 +95,11 @@ def extract_next_links(url: str, resp):
     for i, anchor in enumerate(anchor_tags):
         raw_href = anchor.get('href')
 
-        full_url = urljoin(resp.url, raw_href)
-        extract_links[i] = urldefrag(full_url)[0]
+        try:
+            full_url = urljoin(resp.url, raw_href)
+            extract_links[i] = urldefrag(full_url)[0]
+        except Exception:
+            continue
     
     return extract_links
 
