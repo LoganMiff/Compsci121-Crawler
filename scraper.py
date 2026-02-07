@@ -82,8 +82,10 @@ def extract_next_links(url: str, resp):
     if len(page_text.split()) < 50:
         return []
     
-    # Update the statistics from the crawling session
-    update_statistics(bs_web, resp.url)
+    #Update the statistics (only for unique URLs)
+    if resp.url not in seen_urls:
+        update_statistics(bs_web, resp.url)
+        seen_urls.add(resp.url)
 
     # Detect duplicate/similar links and filter out invalid links
     if is_near_dup(page_text):
@@ -175,7 +177,7 @@ def is_valid(url):
             r'/attachment/',
         ]
         for pattern in trapPatterns:
-            if re.match(pattern, url.lower()):
+            if re.search(pattern, parsed.path.lower()):
                 return False
 
         
@@ -195,7 +197,7 @@ def is_valid(url):
             r'/download/',
         ]
         for pattern in low_info_patterns:
-            if pattern in url.lower():
+            if re.search(pattern, parsed.path.lower()):
                 return False
         
         # Avoid repeating date patterns in URLs
@@ -227,11 +229,12 @@ unique_page_count = 0
 longest_page_link = ""
 longest_page_length = -1
 most_common_words = Counter()
-sub_domain_list = {}
+sub_domain_pages = {}
+seen_urls = set()
 ########################
 # BeautifulSoup(httpresp) -> reddit.com/IATA/somepost
 def update_statistics(bs: BeautifulSoup, url: str) -> None:
-    global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_list
+    global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
     unique_page_count += 1
     curr_tokens = text_to_word(bs.get_text())
     curr_length = len(curr_tokens)
@@ -242,16 +245,27 @@ def update_statistics(bs: BeautifulSoup, url: str) -> None:
 
     most_common_words.update((token for token in curr_tokens if not token in stop_words and len(token) > 1))
 
-    url_new = urlparse(url).hostname
-
-    if url_new is not None and url_new[0:4] == "www.":
-        url_new = url_new[4:]
-
-    if url_new is not None and "uci.edu" in url_new:
-        if url_new not in sub_domain_list:
-            sub_domain_list[url_new] = 1
-        else:
-            sub_domain_list[url_new] +=1
+    #validate it's in the allowed set
+    hostname = urlparse(url).hostname
+    if hostname is not None:
+        # Remove www.
+        if hostname.startswith("www."):
+            hostname = hostname[4:]
+        
+        #valid patterns: ics.uci.edu, cs.uci.edu, informatics.uci.edu, stat.uci.edu
+        #and any subdomain like vision.ics.uci.edu, etc.
+        valid_depts = ['ics.uci.edu', 'cs.uci.edu', 'informatics.uci.edu', 'stat.uci.edu']
+        is_valid_subdomain = False
+        
+        for dept in valid_depts:
+            if hostname == dept or hostname.endswith('.' + dept):
+                is_valid_subdomain = True
+                break
+        
+        if is_valid_subdomain:
+            if hostname not in sub_domain_pages:
+                sub_domain_pages[hostname] = set()
+            sub_domain_pages[hostname].add(url)
     
     
 
@@ -276,8 +290,8 @@ def text_to_word(text):
     return re.findall(r"[a-zA-Z0-9]+(?:'[a-z]+)?", text.lower())
 
 def final_report():
-    global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_list
-    subdomains = sorted(sub_domain_list.items())
+    global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
+    subdomains = sorted((domain, len(url_set)) for domain, url_set in sub_domain_pages.items())
     fifty_most_common_words = most_common_words.most_common(50)
     with open("stats.txt", 'w') as f:
         f.write(f"{unique_page_count}\n")
