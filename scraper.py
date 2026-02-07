@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 
 from collections import Counter
 import hashlib
+import json
+import os
+import atexit
 
 website_fps = []
 website_fps_wordcount = []  #track word count for each fingerprint
@@ -236,6 +239,7 @@ def is_valid(url):
 
 #########################
 #STATS GLOBAL VARIABLES
+STATS_JSON_FILE = "crawler_stats.json"
 unique_page_count = 0
 longest_page_link = ""
 longest_page_length = -1
@@ -243,7 +247,43 @@ most_common_words = Counter()
 sub_domain_pages = {}
 seen_urls = set()
 ########################
-# BeautifulSoup(httpresp) -> reddit.com/IATA/somepost
+
+def load_statistics():
+    """load statistics from JSON file"""
+    global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages, seen_urls
+    if os.path.exists(STATS_JSON_FILE):
+        try:
+            with open(STATS_JSON_FILE, 'r') as f:
+                data = json.load(f)
+                unique_page_count = data.get('unique_page_count', 0)
+                longest_page_length = data.get('longest_page_length', -1)
+                longest_page_link = data.get('longest_page_link', "")
+                most_common_words = Counter(data.get('most_common_words', {}))
+                # Convert list of URLs back to sets for each subdomain
+                sub_domain_pages = {k: set(v) for k, v in data.get('sub_domain_pages', {}).items()}
+                seen_urls = set(data.get('seen_urls', []))
+        except Exception as e:
+            print(f"Failed to load stats: {e} starting from scratch")
+
+def save_statistics():
+    """save all statistics to JSON"""
+    try:
+        data = {
+            'unique_page_count': unique_page_count,
+            'longest_page_length': longest_page_length,
+            'longest_page_link': longest_page_link,
+            'most_common_words': dict(most_common_words),  #save ALL words
+            'sub_domain_pages': {k: list(v) for k, v in sub_domain_pages.items()},  #convert sets to lists for JSON
+            'seen_urls': list(seen_urls)
+        }
+        with open(STATS_JSON_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Failed to save stats: {e}")
+
+#load existing stats when module is imported
+load_statistics()
+
 def update_statistics(bs: BeautifulSoup, url: str) -> None:
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
     unique_page_count += 1
@@ -278,7 +318,9 @@ def update_statistics(bs: BeautifulSoup, url: str) -> None:
                 sub_domain_pages[hostname] = set()
             sub_domain_pages[hostname].add(url)
     
-    
+    #save statistics every 50 pages - to survive crashes
+    if unique_page_count % 50 == 0:
+        save_statistics()
 
 #Helper functions
 
@@ -302,6 +344,11 @@ def text_to_word(text):
 
 def final_report():
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
+    
+    #save current state to JSON first
+    save_statistics()
+    
+    #generate final formatted report
     subdomains = sorted((domain, len(url_set)) for domain, url_set in sub_domain_pages.items())
     fifty_most_common_words = most_common_words.most_common(50)
     with open("stats.txt", 'w') as f:
@@ -311,4 +358,11 @@ def final_report():
             f.write("{}: {} \n".format(word, count))
         for domain, count in subdomains:
             f.write("{}, {}\n".format(domain, count))
+    
+    print(f"Unique pages: {unique_page_count}")
+    print(f"Subdomains found: {len(subdomains)}")
+    print(f"Total unique words: {len(most_common_words)}")
+
+atexit.register(save_statistics)
+atexit.register(final_report)
 
