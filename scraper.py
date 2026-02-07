@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import atexit
+import sys
 
 website_fps = []
 website_fps_wordcount = []  #track word count for each fingerprint
@@ -260,6 +261,16 @@ seen_urls = set()
 def load_statistics():
     """load statistics from JSON file"""
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages, seen_urls
+    
+    # Check if --restart was passed as command line argument
+    is_restart = '--restart' in sys.argv
+    
+    if is_restart and os.path.exists(STATS_JSON_FILE):
+        print("Clean restart requested - clearing old statistics")
+        os.remove(STATS_JSON_FILE)
+        print("Starting with fresh statistics")
+        return
+    
     if os.path.exists(STATS_JSON_FILE):
         try:
             with open(STATS_JSON_FILE, 'r') as f:
@@ -270,11 +281,11 @@ def load_statistics():
                 most_common_words = Counter(data.get('most_common_words', {}))
                 # Convert list of URLs back to sets for each subdomain
                 sub_domain_pages = {k: set(v) for k, v in data.get('sub_domain_pages', {}).items()}
-            print(f"Loaded existing stats: {unique_page_count} pages, {len(sub_domain_pages)} subdomains")
+            print(f"Resuming from previous run: {unique_page_count} pages, {len(sub_domain_pages)} subdomains")
         except Exception as e:
             print(f"Warning: Failed to load stats: {e}, starting from scratch")
     else:
-        print("No existing stats file found...")
+        print("No existing stats file found, starting fresh")
 
 def save_statistics():
     """save all statistics to JSON"""
@@ -283,8 +294,8 @@ def save_statistics():
             'unique_page_count': unique_page_count,
             'longest_page_length': longest_page_length,
             'longest_page_link': longest_page_link,
-            'most_common_words': dict(most_common_words),  #save ALL words
-            'sub_domain_pages': {k: list(v) for k, v in sub_domain_pages.items()},  #convert sets to lists for JSON
+            'most_common_words': dict(most_common_words.most_common(50)),  # Save only top 50 words
+            'sub_domain_pages': {k: list(v) for k, v in sub_domain_pages.items()},  # Convert sets to lists for JSON
         }
         with open(STATS_JSON_FILE, 'w') as f:
             json.dump(data, f, indent=2)
