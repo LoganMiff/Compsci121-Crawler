@@ -94,12 +94,14 @@ class Frontier(object):
                 return None
             
             self.in_progress_domains.add(domain_to_add)
-            self.domainLastAccessed[domain_to_add] = time.time() + 0.1
+            self.domainLastAccessed[domain_to_add] = time.time()
 
-            url = self.subdomain_queues[domain_to_add].get_nowait()
-            self.subdomain_queues[domain_to_add].task_done()
-
-            return url
+            try:
+                url = self.subdomain_queues[domain_to_add].get_nowait()
+                return url
+            except Empty:
+                self.in_progress_domains.remove(domain_to_add)
+                return None
         
 
     def add_url(self, url):
@@ -117,25 +119,35 @@ class Frontier(object):
 
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
+        domain = ".".join(urlparse(url).netloc.split(".")[-3:])
 
         with self.lock:
             if urlhash not in self.save:
                 # This should not happen.
                 self.logger.error(
                     f"Completed url {url}, but have not seen it before.")
-    
-            self.save[urlhash] = (url, True)
-            self.save.sync()
+            else:
+                self.save[urlhash] = (url, True)
+                self.save.sync()
             
             # Remove the domain
-            domain = ".".join(urlparse(url).netloc.split(".")[-3:])
             if domain in self.in_progress_domains:
                 self.in_progress_domains.remove(domain)
+            self.domainLastAccessed[domain] = time.time()
+
+            # if domain in self.in_progress_domains:
+            #     self.in_progress_domains.remove(domain)
 
     def has_pending_urls(self):
         #check if there are any pending URLs in any queue
+
         with self.lock:
-            for q in self.subdomain_queues.values():
-                if not q.empty():
-                    return True
-            return False
+            queues_have_items = any(not q.empty() for q in self.subdomain_queues.values())
+            still_crawling = len(self.in_progress_domains) > 0
+            return queues_have_items or still_crawling
+
+        # with self.lock:
+        #     for q in self.subdomain_queues.values():
+        #         if not q.empty():
+        #             return True
+        #     return False
