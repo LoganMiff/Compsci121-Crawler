@@ -81,7 +81,6 @@ class Frontier(object):
                     continue
                 
                 last_time = self.domainLastAccessed.get(domain, -100)
-                self.subdomain_queues[domain].task_done()
                 time_diff = current_time - last_time
                 
                 if time_diff >= self.config.time_delay:
@@ -97,13 +96,16 @@ class Frontier(object):
             self.in_progress_domains.add(domain_to_add)
             self.domainLastAccessed[domain] = time.time() + 0.1
 
-            return self.subdomain_queues[domain_to_add].get_nowait()
+            url = self.subdomain_queues[domain_to_add].get_nowait()
+            self.subdomain_queues[domain_to_add].task_done()
+
+            return url
         
 
     def add_url(self, url):
         url = normalize(url)
         urlhash = get_urlhash(url)
-        domain = urlparse(url).netloc
+        domain = ".".join(urlparse(url).netloc.split(".")[-3:])
 
         with self.lock:
             if urlhash not in self.save:
@@ -126,6 +128,6 @@ class Frontier(object):
             self.save.sync()
             
             # Remove the domain
-            domain = urlparse(url).netloc
+            domain = ".".join(urlparse(url).netloc.split(".")[-3:])
             if domain in self.in_progress_domains:
                 self.in_progress_domains.remove(domain)
