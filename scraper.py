@@ -93,18 +93,17 @@ def extract_next_links(url: str, resp):
     # Setting up BS Object for page parsing
     bs_web = BeautifulSoup(resp.raw_response.content, "html.parser")
     page_text = bs_web.get_text()
-    page_words = page_text.split()
+    page_words = text_to_word(page_text)
 
+    if resp.url not in seen_urls:
+        update_statistics(resp.url, page_words)
+        seen_urls.add(resp.url)
+    
     if len(page_words) < 50:
-        return []
+        return []  # Don't crawl links from low content pages
     
     if is_near_dup(page_words):
-        return []
-    
-    #update the statistics
-    if resp.url not in seen_urls:
-        update_statistics(bs_web, resp.url)
-        seen_urls.add(resp.url)
+        return []  # Don't crawl links from duplicate pages
 
     anchor_tags = bs_web.find_all('a', href=True)
     
@@ -308,17 +307,19 @@ try:
 except Exception as e:
     print(f"Error during stats loading: {e}, continuing anyway")
 
-def update_statistics(bs: BeautifulSoup, url: str) -> None:
+def update_statistics(url: str, tokens: list) -> None:
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
     unique_page_count += 1
-    curr_tokens = text_to_word(bs.get_text())
-    curr_length = len(curr_tokens)
     
-    if(curr_length > longest_page_length):
-        longest_page_link = url
-        longest_page_length = curr_length
+    if len(tokens) >= 50:
+        if len(tokens) > longest_page_length:
+            longest_page_link = url
+            longest_page_length = len(tokens)
 
-    most_common_words.update((token for token in curr_tokens if not token in stop_words and len(token) > 1))
+        most_common_words.update((token for token in tokens if token not in stop_words and len(token) > 1))
+    else:
+        #low content page: counted as unique but not analyzed for words
+        pass
 
     #validate it's in the allowed set
     hostname = urlparse(url).hostname
