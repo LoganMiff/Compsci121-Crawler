@@ -131,3 +131,11 @@ class Frontier(object):
             domain = ".".join(urlparse(url).netloc.split(".")[-3:])
             if domain in self.in_progress_domains:
                 self.in_progress_domains.remove(domain)
+
+    def has_pending_urls(self):
+        #check if there are any pending URLs in any queue
+        with self.lock:
+            for q in self.subdomain_queues.values():
+                if not q.empty():
+                    return True
+            return False
