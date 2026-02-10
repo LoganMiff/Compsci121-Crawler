@@ -17,7 +17,7 @@ class Frontier(object):
         self.config = config
         
         # Multithreading
-        self.subdomain_queues = defaultdict(lambda: Queue)
+        self.subdomain_queues = defaultdict(Queue)
         self.in_progress_domains = set()
         self.domainLastAccessed = {}
 
@@ -57,7 +57,7 @@ class Frontier(object):
             for url, completed in self.save.values():
                 if not completed and is_valid(url):
                     # Organize by the domain
-                    domain = urlparse(url).netloc
+                    domain = ".".join(urlparse(url).netloc.split(".")[-3:])
                     self.subdomain_queues[domain].put(url)
                     tbd_count += 1
             self.logger.info(
@@ -94,7 +94,7 @@ class Frontier(object):
                 return None
             
             self.in_progress_domains.add(domain_to_add)
-            self.domainLastAccessed[domain] = time.time() + 0.1
+            self.domainLastAccessed[domain_to_add] = time.time() + 0.1
 
             url = self.subdomain_queues[domain_to_add].get_nowait()
             self.subdomain_queues[domain_to_add].task_done()
