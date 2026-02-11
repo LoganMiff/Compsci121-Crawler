@@ -167,7 +167,7 @@ def is_valid(url):
         """
 
         # Avoid common dynamic table traps
-        if re.search(r"(do|sortby|sortdir|rev|version|precision|from|diff|format|action)=", parsed.query):
+        if re.search(r"(do|sortby|sortdir|rev|version|precision|from|diff|format|action|replytocom)=", parsed.query):
             return False
         
         if re.search(r"/(timeline|search|changeset|attachment)", parsed.path.lower()):
