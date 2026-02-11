@@ -378,7 +378,7 @@ stop_words = {
     "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"
 }
 def text_to_word(text):
-    return re.findall(r"[a-z]+(?:'[a-z]+)?", text.lower())
+    return re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)?", text.lower())
 
 def final_report():
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
