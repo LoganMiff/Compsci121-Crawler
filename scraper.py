@@ -165,6 +165,11 @@ def is_valid(url):
         """
         "Detect and avoid infinite traps"
         """
+
+        # Avoid common dynamic table traps
+        if re.search(r"(do|sortby|sortdir|rev)=", parsed.query):
+            return False
+
         # Avoid long URLs (Limit trap)
         if len(url) > 200:
             return False
@@ -316,7 +321,12 @@ def update_statistics(url: str, tokens: list) -> None:
             longest_page_link = url
             longest_page_length = len(tokens)
 
-        most_common_words.update((token for token in tokens if token not in stop_words and len(token) > 1))
+        most_common_words.update(
+            token for token in tokens 
+            if token not in stop_words 
+            and len(token) > 2
+            and not token.isnumeric() 
+            )
     else:
         #low content page: counted as unique but not analyzed for words
         pass
@@ -365,7 +375,7 @@ stop_words = {
     "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"
 }
 def text_to_word(text):
-    return re.findall(r"[a-zA-Z0-9]+(?:'[a-z]+)?", text.lower())
+    return re.findall(r"[a-z]+(?:'[a-z]+)?", text.lower())
 
 def final_report():
     global unique_page_count, longest_page_length, longest_page_link, most_common_words, sub_domain_pages
