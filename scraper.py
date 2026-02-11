@@ -148,7 +148,7 @@ def is_valid(url):
         
         # File extension filtering
         if re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
+            r".*\.(css|can|mat|nc|bigw|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|mpg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names"
@@ -167,7 +167,10 @@ def is_valid(url):
         """
 
         # Avoid common dynamic table traps
-        if re.search(r"(do|sortby|sortdir|rev)=", parsed.query):
+        if re.search(r"(do|sortby|sortdir|rev|version|precision|from|diff|format|action)=", parsed.query):
+            return False
+        
+        if re.search(r"/(timeline|search|changeset|attachment)", parsed.path.lower()):
             return False
 
         # Avoid long URLs (Limit trap)
